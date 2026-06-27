@@ -27,7 +27,7 @@
     --safe-bottom: env(safe-area-inset-bottom);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; overflow: hidden; }
+  html, body { height: 100%; overflow-x: hidden; overflow-y: hidden; max-width: 100vw; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     background: var(--bg);
@@ -328,7 +328,8 @@
 
   /* Unit picker (new) */
   .unit-row {
-    display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px;
+    display: grid; grid-template-columns: 90px 1fr; gap: 10px;
+    width: 100%; min-width: 0; max-width: 100%;
   }
   .unit-amount, .unit-select {
     padding: 12px 14px;
@@ -338,12 +339,15 @@
     font-size: 16px;
     appearance: none;
     -webkit-appearance: none;
+    width: 100%; min-width: 0; max-width: 100%;
   }
+  .unit-amount { text-align: center; font-weight: 600; }
   .unit-select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 36px;
+    text-overflow: ellipsis;
   }
   .unit-amount:focus, .unit-select:focus { outline: none; border-color: var(--primary); }
   .unit-calc {
@@ -355,6 +359,7 @@
     font-size: 14px;
     font-weight: 500;
   }
+  .sheet-body { overflow-x: hidden; }
 
   .primary-btn {
     width: 100%; padding: 14px;
@@ -1205,60 +1210,87 @@
       searchTimer = setTimeout(() => doSearch(q), 350);
     });
   }
+  async function fetchWithTimeout(url, ms = 6000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ms);
+    try {
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
+      clearTimeout(timeoutId);
+      return res;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
+    }
+  }
+
   async function doSearch(q) {
     const status = document.getElementById('searchStatus');
     const results = document.getElementById('searchResults');
     status.textContent = 'Searching…';
     results.innerHTML = '';
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    try {
-      const fields = 'code,product_name,product_name_nl,product_name_fr,product_name_en,generic_name,brands,nutriments,countries_tags,quantity,serving_size,serving_quantity';
-      const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=20&fields=${fields}`;
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      let products = data.hits || data.products || [];
-      if (products.length === 0) {
-        status.textContent = 'No matches. Try a different word or use manual entry.';
-        return;
+
+    // Try endpoints in order until one returns products.
+    // Search-a-licious (search.openfoodfacts.org) is the recommended new endpoint.
+    // cgi/search.pl is the legacy fallback (sometimes 503s globally).
+    const endpoints = [
+      `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=20`,
+      `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20`
+    ];
+
+    let products = [];
+    let lastError = null;
+    for (const url of endpoints) {
+      try {
+        const res = await fetchWithTimeout(url, 6000);
+        if (!res.ok) { lastError = new Error('HTTP ' + res.status); continue; }
+        const data = await res.json();
+        const found = data.hits || data.products || [];
+        if (found.length > 0) { products = found; break; }
+      } catch (e) {
+        lastError = e;
+        console.warn('Search endpoint failed:', url, e.message || e);
       }
-      // Sort: Belgian products first, then ones with calorie data
-      products.sort((a, b) => {
-        const aBE = (a.countries_tags || []).includes('en:belgium') ? 1 : 0;
-        const bBE = (b.countries_tags || []).includes('en:belgium') ? 1 : 0;
-        if (aBE !== bBE) return bBE - aBE;
-        const aCal = ((a.nutriments || {})['energy-kcal_100g']) ? 1 : 0;
-        const bCal = ((b.nutriments || {})['energy-kcal_100g']) ? 1 : 0;
-        return bCal - aCal;
-      });
-      products = products.slice(0, 12);
-      status.textContent = `${products.length} result${products.length === 1 ? '' : 's'}`;
-      results.innerHTML = products.map((p, i) => {
-        const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || p.generic_name || 'Unknown';
-        const brand = (p.brands || '').split(',')[0].trim() || '';
-        const nutr = p.nutriments || {};
-        const cals = nutr['energy-kcal_100g'] || (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
-        const beTag = (p.countries_tags || []).includes('en:belgium') ? ' 🇧🇪' : '';
-        return `<button class="recent-item" data-idx="${i}">
-          <div class="recent-info">
-            <div class="recent-name">${escapeHtml(name)}${beTag}</div>
-            ${brand ? `<div class="recent-meta">${escapeHtml(brand)}</div>` : ''}
-          </div>
-          <div class="recent-cals">${cals ? Math.round(cals) + ' kcal/100g' : '—'}</div>
-        </button>`;
-      }).join('');
-      results.querySelectorAll('.recent-item').forEach(b => b.addEventListener('click', () => {
-        const p = products[parseInt(b.dataset.idx)];
-        useFoundProduct(p);
-      }));
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.error('Search error:', err);
-      const msg = err.name === 'AbortError' ? 'Search took too long. Try again or use manual entry.' : 'Search failed: ' + (err.message || 'check your connection');
-      status.textContent = msg;
     }
+
+    if (products.length === 0) {
+      if (lastError) {
+        const msg = lastError.name === 'AbortError' ? 'took too long' : (lastError.message || 'connection');
+        status.textContent = `Search unavailable (${msg}). Use barcode scan or manual entry.`;
+      } else {
+        status.textContent = 'No matches. Try a different word or use manual entry.';
+      }
+      return;
+    }
+
+    // Sort: Belgian products first, then ones with calorie data
+    products.sort((a, b) => {
+      const aBE = (a.countries_tags || []).includes('en:belgium') ? 1 : 0;
+      const bBE = (b.countries_tags || []).includes('en:belgium') ? 1 : 0;
+      if (aBE !== bBE) return bBE - aBE;
+      const aCal = ((a.nutriments || {})['energy-kcal_100g']) ? 1 : 0;
+      const bCal = ((b.nutriments || {})['energy-kcal_100g']) ? 1 : 0;
+      return bCal - aCal;
+    });
+    products = products.slice(0, 12);
+    status.textContent = `${products.length} result${products.length === 1 ? '' : 's'}`;
+    results.innerHTML = products.map((p, i) => {
+      const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || p.generic_name || 'Unknown';
+      const brand = (p.brands || '').split(',')[0].trim() || '';
+      const nutr = p.nutriments || {};
+      const cals = nutr['energy-kcal_100g'] || (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
+      const beTag = (p.countries_tags || []).includes('en:belgium') ? ' 🇧🇪' : '';
+      return `<button class="recent-item" data-idx="${i}">
+        <div class="recent-info">
+          <div class="recent-name">${escapeHtml(name)}${beTag}</div>
+          ${brand ? `<div class="recent-meta">${escapeHtml(brand)}</div>` : ''}
+        </div>
+        <div class="recent-cals">${cals ? Math.round(cals) + ' kcal/100g' : '—'}</div>
+      </button>`;
+    }).join('');
+    results.querySelectorAll('.recent-item').forEach(b => b.addEventListener('click', () => {
+      const p = products[parseInt(b.dataset.idx)];
+      useFoundProduct(p);
+    }));
   }
 
   // ----- Barcode scanner -----
@@ -1330,6 +1362,19 @@
       setTimeout(() => { if (scanner) scanner.resume(); }, 1500);
     }
   }
+  function extractWeightFromText(text) {
+    if (!text) return null;
+    // Match "(58 g)" or "58 g" or "200 ml" or "1.5 L" etc.
+    const m = String(text).match(/([\d.,]+)\s*(g|gram|grams|ml|cl|l|kg)\b/i);
+    if (!m) return null;
+    let n = parseFloat(m[1].replace(',', '.'));
+    const u = m[2].toLowerCase();
+    if (u === 'l') n *= 1000;
+    else if (u === 'cl') n *= 10;
+    else if (u === 'kg') n *= 1000;
+    return n > 0 ? n : null;
+  }
+
   function parseProductUnits(p) {
     // Returns: { units: [{name, grams, isBase}], isLiquid, kcalPer100g }
     const nutr = p.nutriments || {};
@@ -1338,7 +1383,8 @@
       : (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
 
     const q = (p.quantity || '').toLowerCase();
-    const isLiquid = /\b(ml|cl|l)\b/.test(q) || /\b(ml|cl|l)\b/.test((p.serving_size || '').toLowerCase());
+    const ss = (p.serving_size || '').toLowerCase();
+    const isLiquid = /\b(ml|cl|l)\b/.test(q) || /\b(ml|cl|l)\b/.test(ss);
     const baseUnit = isLiquid ? 'ml' : 'g';
     const units = [{ name: baseUnit, grams: 1, isBase: true }];
 
@@ -1350,27 +1396,37 @@
       if (u === 'l') size *= 1000;
       else if (u === 'cl') size *= 10;
       else if (u === 'kg') size *= 1000;
-      const label = (u === 'ml' || u === 'cl' || u === 'l') ? 'piece (' + formatSize(size, true) + ')' : 'piece (' + formatSize(size, false) + ')';
-      units.push({ name: label, grams: size });
+      units.push({ name: 'piece (' + formatSize(size, isLiquid) + ')', grams: size });
     }
 
     // Count-based pack: "12 stuks", "4 pieces", "6 eggs", "10 pcs"
-    const countMatch = q.match(/^(\d+)\s+(stuks?|pieces?|pcs|eggs?|eieren|pcs?\.?|×)\b/);
-    if (countMatch && !multi && p.serving_quantity) {
-      const sq = parseFloat(p.serving_quantity);
-      if (sq > 0) {
-        let unitName = countMatch[2].replace(/s$/, '').replace(/^eieren$/, 'egg').replace(/^stuk$/, 'piece');
-        units.push({ name: unitName + ' (' + formatSize(sq, isLiquid) + ')', grams: sq });
+    const countMatch = q.match(/^(\d+)\s+(stuks?|pieces?|pcs|eggs?|eieren|stk|pcs?\.?)\b/);
+    if (countMatch && !multi) {
+      // Try to get per-unit grams from serving_size text first (most reliable)
+      let unitGrams = extractWeightFromText(p.serving_size);
+      // Fall back to serving_quantity only if it's sane (>= 5g/ml — anything smaller is probably a count, not weight)
+      if (!unitGrams) {
+        const sq = parseFloat(p.serving_quantity);
+        if (sq && sq >= 5) unitGrams = sq;
+      }
+      if (unitGrams) {
+        let unitName = countMatch[2].replace(/s$/, '')
+          .replace(/^eieren$/, 'egg').replace(/^stuk$/, 'piece')
+          .replace(/^stk$/, 'piece').replace(/^pcs?\.?$/, 'piece');
+        units.push({ name: unitName + ' (' + formatSize(unitGrams, isLiquid) + ')', grams: unitGrams });
       }
     }
 
-    // Serving size as a unit option (if not already added)
-    const sq = parseFloat(p.serving_quantity);
-    if (sq && sq > 0) {
-      const dup = units.some(u => !u.isBase && Math.abs(u.grams - sq) < 1);
+    // Serving size as a unit option (if not already added and has real weight)
+    let servingGrams = extractWeightFromText(p.serving_size);
+    if (!servingGrams) {
+      const sq = parseFloat(p.serving_quantity);
+      if (sq && sq >= 5) servingGrams = sq;
+    }
+    if (servingGrams) {
+      const dup = units.some(u => !u.isBase && Math.abs(u.grams - servingGrams) < 1);
       if (!dup) {
-        const label = (p.serving_size || '').trim() || 'serving';
-        units.push({ name: 'serving (' + formatSize(sq, isLiquid) + ')', grams: sq, servingLabel: label });
+        units.push({ name: 'serving (' + formatSize(servingGrams, isLiquid) + ')', grams: servingGrams });
       }
     }
 
