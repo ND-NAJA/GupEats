@@ -326,6 +326,36 @@
   .portion-result { font-size: 13px; color: var(--primary); }
   .portion-result strong { font-size: 16px; }
 
+  /* Unit picker (new) */
+  .unit-row {
+    display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px;
+  }
+  .unit-amount, .unit-select {
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 16px;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .unit-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  .unit-amount:focus, .unit-select:focus { outline: none; border-color: var(--primary); }
+  .unit-calc {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: var(--primary-light);
+    color: var(--primary);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
   .primary-btn {
     width: 100%; padding: 14px;
     background: var(--primary);
@@ -573,7 +603,12 @@
     state.recents.unshift({
       name: item.name, brand: item.brand,
       calories: item.calories,
-      kcalPer100g: item.kcalPer100g || null
+      kcalPer100g: item.kcalPer100g || null,
+      units: item.units || null,
+      isLiquid: item.isLiquid || false,
+      unitName: item.unitName || null,
+      unitCount: item.unitCount || null,
+      grams: item.grams || null
     });
     if (state.recents.length > 40) state.recents = state.recents.slice(0, 40);
     saveState();
@@ -705,10 +740,16 @@
         html += `<div class="meal-empty">Nothing logged</div>`;
       } else {
         for (const it of items) {
+          let portionLabel = '';
+          if (it.unitCount && it.unitName) {
+            portionLabel = it.unitCount + ' × ' + it.unitName;
+          } else if (it.grams) {
+            portionLabel = it.grams + ' g';
+          }
           html += `<button class="meal-item" data-meal="${m.id}" data-id="${it.id}">
             <div class="item-info">
               <div class="item-name">${escapeHtml(it.name)}</div>
-              ${it.brand ? `<div class="item-brand">${escapeHtml(it.brand)}${it.grams ? ' · ' + it.grams + ' g' : ''}</div>` : it.grams ? `<div class="item-brand">${it.grams} g</div>` : ''}
+              ${it.brand || portionLabel ? `<div class="item-brand">${[it.brand, portionLabel].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
             </div>
             <div class="item-cals">${it.calories ? it.calories + ' kcal' : '—'}</div>
           </button>`;
@@ -989,7 +1030,14 @@
     document.getElementById('modeManual').addEventListener('click', () => showManualForm());
     body.querySelectorAll('.recent-item').forEach(b => b.addEventListener('click', () => {
       const r = state.recents[parseInt(b.dataset.idx)];
-      addItem(currentDate, activeMeal, { name: r.name, brand: r.brand, calories: r.calories, kcalPer100g: r.kcalPer100g });
+      addItem(currentDate, activeMeal, {
+        name: r.name, brand: r.brand,
+        calories: r.calories,
+        kcalPer100g: r.kcalPer100g,
+        units: r.units, isLiquid: r.isLiquid,
+        unitName: r.unitName, unitCount: r.unitCount,
+        grams: r.grams
+      });
       toast('Added');
       closeSheet();
       render();
@@ -999,7 +1047,25 @@
   function showManualForm(prefill = {}, isEdit = false) {
     const body = document.getElementById('sheetBody');
     const kcalPer100g = prefill.kcalPer100g || null;
-    const initialGrams = prefill.grams || (kcalPer100g ? 100 : '');
+    const units = prefill.units || (kcalPer100g ? [{ name: prefill.isLiquid ? 'ml' : 'g', grams: 1, isBase: true }] : null);
+    const hasUnits = units && units.length > 0 && kcalPer100g;
+
+    // Determine starting unit + amount
+    let initialUnitIdx = 0;
+    let initialAmount = 1;
+    if (prefill.unitName && units) {
+      const found = units.findIndex(u => u.name === prefill.unitName);
+      if (found >= 0) initialUnitIdx = found;
+    } else if (units && units.length > 1) {
+      // For new entries, prefer the pack unit (index 1) over base
+      initialUnitIdx = 1;
+    }
+    if (prefill.unitCount) initialAmount = prefill.unitCount;
+    else if (prefill.grams && units && units[initialUnitIdx]) {
+      initialAmount = +(prefill.grams / units[initialUnitIdx].grams).toFixed(2);
+    } else if (units && units[initialUnitIdx] && units[initialUnitIdx].isBase) {
+      initialAmount = 100;
+    }
 
     body.innerHTML = `
       <div class="field">
@@ -1010,15 +1076,20 @@
         <label class="field-label">Brand <span style="opacity:0.6">(optional)</span></label>
         <input type="text" class="field-input" id="mBrand" placeholder="—" value="${escapeAttr(prefill.brand || '')}">
       </div>
-      ${kcalPer100g ? `
-        <div class="portion-row">
-          <label for="mGrams">${kcalPer100g} kcal per 100g × </label>
-          <input type="number" inputmode="numeric" class="portion-input" id="mGrams" value="${initialGrams}" min="1">
-          <div class="portion-result"><strong id="mPortionCalc">${Math.round(kcalPer100g * (initialGrams || 0) / 100)}</strong> kcal</div>
+      ${hasUnits ? `
+        <div class="field">
+          <label class="field-label">How much did you have?</label>
+          <div class="unit-row">
+            <input type="number" inputmode="decimal" step="0.1" min="0" class="unit-amount" id="mAmount" value="${initialAmount}">
+            <select class="unit-select" id="mUnit">
+              ${units.map((u, i) => `<option value="${i}" ${i === initialUnitIdx ? 'selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="unit-calc" id="mCalc">— kcal · ${kcalPer100g} kcal per 100 ${units[0].name}</div>
         </div>
       ` : ''}
       <div class="field">
-        <label class="field-label">Calories ${kcalPer100g ? '<span style="opacity:0.6">(auto-calculated)</span>' : '<span style="opacity:0.6">(optional)</span>'}</label>
+        <label class="field-label">Calories ${hasUnits ? '<span style="opacity:0.6">(auto-calculated)</span>' : '<span style="opacity:0.6">(optional)</span>'}</label>
         <input type="number" inputmode="numeric" class="field-input" id="mCals" placeholder="—" value="${prefill.calories || ''}">
       </div>
       <button class="primary-btn" id="mSave">${isEdit ? 'Save changes' : `Add to ${MEALS.find(m => m.id === activeMeal).label.toLowerCase()}`}</button>
@@ -1028,19 +1099,31 @@
 
     setTimeout(() => document.getElementById('mName').focus(), 100);
 
-    // Portion auto-calc
-    if (kcalPer100g) {
-      const gramsEl = document.getElementById('mGrams');
-      const calcEl = document.getElementById('mPortionCalc');
+    // Live calorie calculation
+    if (hasUnits) {
+      const amountEl = document.getElementById('mAmount');
+      const unitEl = document.getElementById('mUnit');
+      const calcEl = document.getElementById('mCalc');
       const calsEl = document.getElementById('mCals');
+      let manualOverride = !!prefill.calories && !!prefill.unitName;
+
       const updateCals = () => {
-        const g = parseFloat(gramsEl.value) || 0;
-        const cals = Math.round(kcalPer100g * g / 100);
-        calcEl.textContent = cals;
-        calsEl.value = cals;
+        const amount = parseFloat(amountEl.value) || 0;
+        const unit = units[parseInt(unitEl.value)] || units[0];
+        const grams = amount * unit.grams;
+        const cals = Math.round(grams * kcalPer100g / 100);
+        const portionLabel = unit.isBase ? formatSize(grams, prefill.isLiquid) : amount + ' × ' + unit.name;
+        calcEl.textContent = `= ${cals} kcal (${portionLabel})`;
+        if (!manualOverride) calsEl.value = cals;
       };
-      gramsEl.addEventListener('input', updateCals);
-      if (!prefill.calories) updateCals();
+      amountEl.addEventListener('input', updateCals);
+      unitEl.addEventListener('change', () => {
+        // When switching units, keep grams equivalent if possible
+        manualOverride = false;
+        updateCals();
+      });
+      calsEl.addEventListener('input', () => { manualOverride = true; });
+      updateCals();
     }
 
     const save = () => {
@@ -1048,8 +1131,23 @@
       if (!name) { toast('Please enter a name', true); return; }
       const brand = document.getElementById('mBrand').value.trim();
       const cals = parseInt(document.getElementById('mCals').value) || null;
-      const grams = kcalPer100g ? (parseFloat(document.getElementById('mGrams').value) || null) : (prefill.grams || null);
-      const payload = { name, brand: brand || null, calories: cals, grams, kcalPer100g };
+      let grams = null, unitName = null, unitCount = null;
+      if (hasUnits) {
+        const amount = parseFloat(document.getElementById('mAmount').value) || 0;
+        const unitIdx = parseInt(document.getElementById('mUnit').value);
+        const unit = units[unitIdx];
+        grams = amount * unit.grams;
+        unitName = unit.name;
+        unitCount = amount;
+      } else if (prefill.grams) {
+        grams = prefill.grams;
+      }
+      const payload = {
+        name, brand: brand || null,
+        calories: cals,
+        grams, unitName, unitCount,
+        kcalPer100g, units, isLiquid: prefill.isLiquid
+      };
       if (isEdit) {
         updateItem(currentDate, editingItem.mealId, editingItem.itemId, payload);
         toast('Saved');
@@ -1062,7 +1160,6 @@
     };
 
     document.getElementById('mSave').addEventListener('click', save);
-    // Enter to save
     body.querySelectorAll('input').forEach(inp => {
       inp.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
     });
@@ -1113,18 +1210,21 @@
     const results = document.getElementById('searchResults');
     status.textContent = 'Searching…';
     results.innerHTML = '';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
     try {
-      const fields = 'code,product_name,product_name_nl,product_name_fr,product_name_en,generic_name,brands,nutriments,countries_tags';
-      const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&fields=${fields}&page_size=20`;
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const fields = 'code,product_name,product_name_nl,product_name_fr,product_name_en,generic_name,brands,nutriments,countries_tags,quantity,serving_size,serving_quantity';
+      const url = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=20&fields=${fields}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      let products = data.products || [];
+      let products = data.hits || data.products || [];
       if (products.length === 0) {
         status.textContent = 'No matches. Try a different word or use manual entry.';
         return;
       }
-      // Sort: Belgian products first, then ones with calorie data, then the rest
+      // Sort: Belgian products first, then ones with calorie data
       products.sort((a, b) => {
         const aBE = (a.countries_tags || []).includes('en:belgium') ? 1 : 0;
         const bBE = (b.countries_tags || []).includes('en:belgium') ? 1 : 0;
@@ -1154,8 +1254,10 @@
         useFoundProduct(p);
       }));
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('Search error:', err);
-      status.textContent = 'Search failed: ' + (err.message || 'check your connection') + '. Try manual entry.';
+      const msg = err.name === 'AbortError' ? 'Search took too long. Try again or use manual entry.' : 'Search failed: ' + (err.message || 'check your connection');
+      status.textContent = msg;
     }
   }
 
@@ -1228,14 +1330,74 @@
       setTimeout(() => { if (scanner) scanner.resume(); }, 1500);
     }
   }
+  function parseProductUnits(p) {
+    // Returns: { units: [{name, grams, isBase}], isLiquid, kcalPer100g }
+    const nutr = p.nutriments || {};
+    const kcalPer100g = nutr['energy-kcal_100g']
+      ? Math.round(nutr['energy-kcal_100g'])
+      : (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
+
+    const q = (p.quantity || '').toLowerCase();
+    const isLiquid = /\b(ml|cl|l)\b/.test(q) || /\b(ml|cl|l)\b/.test((p.serving_size || '').toLowerCase());
+    const baseUnit = isLiquid ? 'ml' : 'g';
+    const units = [{ name: baseUnit, grams: 1, isBase: true }];
+
+    // Multi-unit pack: "6 x 500 ml", "12 × 1.5 L", "4x100g"
+    const multi = q.match(/(\d+)\s*[x×]\s*([\d.,]+)\s*(ml|cl|l|g|kg)/);
+    if (multi) {
+      let size = parseFloat(multi[2].replace(',', '.'));
+      const u = multi[3];
+      if (u === 'l') size *= 1000;
+      else if (u === 'cl') size *= 10;
+      else if (u === 'kg') size *= 1000;
+      const label = (u === 'ml' || u === 'cl' || u === 'l') ? 'piece (' + formatSize(size, true) + ')' : 'piece (' + formatSize(size, false) + ')';
+      units.push({ name: label, grams: size });
+    }
+
+    // Count-based pack: "12 stuks", "4 pieces", "6 eggs", "10 pcs"
+    const countMatch = q.match(/^(\d+)\s+(stuks?|pieces?|pcs|eggs?|eieren|pcs?\.?|×)\b/);
+    if (countMatch && !multi && p.serving_quantity) {
+      const sq = parseFloat(p.serving_quantity);
+      if (sq > 0) {
+        let unitName = countMatch[2].replace(/s$/, '').replace(/^eieren$/, 'egg').replace(/^stuk$/, 'piece');
+        units.push({ name: unitName + ' (' + formatSize(sq, isLiquid) + ')', grams: sq });
+      }
+    }
+
+    // Serving size as a unit option (if not already added)
+    const sq = parseFloat(p.serving_quantity);
+    if (sq && sq > 0) {
+      const dup = units.some(u => !u.isBase && Math.abs(u.grams - sq) < 1);
+      if (!dup) {
+        const label = (p.serving_size || '').trim() || 'serving';
+        units.push({ name: 'serving (' + formatSize(sq, isLiquid) + ')', grams: sq, servingLabel: label });
+      }
+    }
+
+    return { units, isLiquid, kcalPer100g };
+  }
+
+  function formatSize(n, isLiquid) {
+    if (isLiquid) {
+      if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + ' L';
+      return Math.round(n) + ' ml';
+    } else {
+      if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + ' kg';
+      return Math.round(n) + ' g';
+    }
+  }
+
   function useFoundProduct(p) {
     const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || p.generic_name_nl || p.generic_name || 'Unknown product';
     const brand = (p.brands || '').split(',')[0].trim() || null;
-    const nutr = p.nutriments || {};
-    const kcalPer100g = nutr['energy-kcal_100g'] ? Math.round(nutr['energy-kcal_100g']) : (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
+    const parsed = parseProductUnits(p);
     stopScanner();
-    showManualForm({ name, brand, kcalPer100g });
-    toast(kcalPer100g ? 'Found — set how many grams you ate' : 'Found — add calories if known');
+    showManualForm({ name, brand, kcalPer100g: parsed.kcalPer100g, units: parsed.units, isLiquid: parsed.isLiquid });
+    if (parsed.units.length > 1) {
+      toast('Found — pick a unit and amount');
+    } else {
+      toast(parsed.kcalPer100g ? 'Found — set amount eaten' : 'Found — add calories if known');
+    }
   }
 
   // ----- View switching -----
