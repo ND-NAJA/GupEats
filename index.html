@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Food Log">
 <meta name="theme-color" content="#FAFAF7">
 <title>Food Log</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%232D5F4F'/%3E%3Ctext x='90' y='118' font-size='100' text-anchor='middle' fill='white' font-family='-apple-system,sans-serif' font-weight='600'%3E%F0%9F%8D%83%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%232D5F4F'/%3E%3Ctext x='90' y='128' font-size='110' text-anchor='middle' font-family='-apple-system,sans-serif'%3E%F0%9F%8D%83%3C/text%3E%3C/svg%3E">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
@@ -20,6 +20,7 @@
     --primary: #2D5F4F;
     --primary-light: #E8F0EC;
     --accent: #E8804B;
+    --accent-light: #FCEEE2;
     --border: #EAEAE5;
     --danger: #C84A4A;
     --safe-top: env(safe-area-inset-top);
@@ -42,33 +43,60 @@
 
   /* Header */
   .header {
-    padding: calc(var(--safe-top) + 16px) 20px 12px;
+    padding: calc(var(--safe-top) + 14px) 20px 10px;
     background: var(--bg);
     border-bottom: 1px solid var(--border);
   }
-  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
   .app-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-  .leaf { color: var(--primary); }
+  .leaf { display: inline-block; transform: translateY(1px); margin-right: 2px; }
   .header-actions { display: flex; gap: 6px; }
   .icon-btn {
-    width: 36px; height: 36px; border-radius: 10px;
+    width: 38px; height: 38px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    color: var(--muted); font-size: 18px;
+    color: var(--muted);
     transition: background 0.15s;
   }
   .icon-btn:active { background: var(--border); }
-  .date-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .date-nav-btn { padding: 6px 10px; color: var(--muted); font-size: 18px; border-radius: 8px; }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  .date-nav { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .date-nav-btn { width: 38px; height: 38px; color: var(--muted); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
   .date-nav-btn:active { background: var(--border); }
+  .date-nav-btn svg { width: 14px; height: 14px; }
   .current-date {
-    flex: 1; text-align: center;
-    font-size: 15px; font-weight: 600;
-    padding: 6px;
+    flex: 1; text-align: center; padding: 8px;
+    border-radius: 10px;
+    transition: background 0.15s;
+    cursor: pointer;
   }
-  .current-date small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 1px; }
+  .current-date:active { background: var(--border); }
+  .current-date-main { font-size: 15px; font-weight: 600; }
+  .current-date-sub { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 1px; }
+  .hidden-date-input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
 
   /* Main content */
   .content { flex: 1; overflow-y: auto; padding: 16px 16px 100px; -webkit-overflow-scrolling: touch; }
+
+  /* Welcome state */
+  .welcome { padding: 30px 20px; text-align: center; }
+  .welcome-emoji { font-size: 48px; margin-bottom: 14px; }
+  .welcome-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px; }
+  .welcome-text { color: var(--muted); font-size: 15px; line-height: 1.5; margin-bottom: 22px; }
+  .welcome-cta {
+    background: var(--primary); color: white;
+    border-radius: 12px; padding: 14px 24px;
+    font-size: 15px; font-weight: 600;
+    display: inline-block;
+  }
+  .welcome-cta:active { opacity: 0.85; }
+  .welcome-tip {
+    background: var(--primary-light);
+    border-radius: 12px; padding: 14px 16px;
+    color: var(--primary);
+    font-size: 13px; margin: 20px 0 0;
+    text-align: left;
+  }
 
   /* Summary card */
   .summary {
@@ -77,30 +105,24 @@
     border-radius: 16px;
     padding: 18px 20px;
     margin-bottom: 20px;
-    display: flex; justify-content: space-between; align-items: center;
   }
+  .summary-row { display: flex; justify-content: space-between; align-items: baseline; }
   .summary-label { font-size: 13px; opacity: 0.8; margin-bottom: 4px; }
   .summary-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
   .summary-value small { font-size: 14px; font-weight: 400; opacity: 0.7; margin-left: 4px; }
   .summary-right { text-align: right; }
+  .summary-value.sub { font-size: 22px; }
   .progress-track {
     height: 6px; background: rgba(255,255,255,0.2);
     border-radius: 3px; overflow: hidden;
-    margin-top: 12px;
+    margin-top: 14px;
   }
-  .progress-fill {
-    height: 100%; background: white;
-    border-radius: 3px;
-    transition: width 0.4s ease;
-  }
+  .progress-fill { height: 100%; background: white; border-radius: 3px; transition: width 0.4s ease; }
   .progress-fill.over { background: #FFB74D; }
   .progress-meta {
     display: flex; justify-content: space-between;
-    font-size: 12px; opacity: 0.85;
-    margin-top: 8px;
+    font-size: 12px; opacity: 0.85; margin-top: 8px;
   }
-
-  /* Goal dot for week/month */
   .goal-dot {
     display: inline-block; width: 6px; height: 6px;
     border-radius: 50%; margin-left: 6px;
@@ -121,8 +143,8 @@
     padding: 14px 16px 10px;
     display: flex; justify-content: space-between; align-items: baseline;
   }
-  .meal-title { font-size: 15px; font-weight: 600; }
-  .meal-icon { margin-right: 8px; }
+  .meal-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .meal-icon { font-size: 16px; }
   .meal-total { font-size: 13px; color: var(--muted); }
   .meal-items { padding: 0 16px; }
   .meal-item {
@@ -130,16 +152,15 @@
     padding: 10px 0;
     border-top: 1px solid var(--border);
     gap: 12px;
+    cursor: pointer;
+    transition: opacity 0.15s;
   }
   .meal-item:first-child { border-top: none; }
+  .meal-item:active { opacity: 0.5; }
   .item-info { flex: 1; min-width: 0; }
   .item-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-brand { font-size: 12px; color: var(--faint); margin-top: 1px; }
   .item-cals { font-size: 13px; color: var(--muted); white-space: nowrap; }
-  .item-delete {
-    color: var(--faint); padding: 4px 8px;
-    font-size: 14px;
-  }
   .meal-empty { padding: 4px 0 12px; color: var(--faint); font-size: 13px; font-style: italic; }
   .add-btn {
     width: 100%; padding: 12px 16px;
@@ -157,9 +178,11 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 14px 16px;
     border-top: 1px solid var(--border);
+    width: 100%; text-align: left;
   }
   .week-row:first-child { border-top: none; }
   .week-row.today { background: var(--primary-light); }
+  .week-row:active { opacity: 0.6; }
   .week-day { font-size: 14px; font-weight: 500; }
   .week-day small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 1px; }
   .week-stats { text-align: right; font-size: 13px; color: var(--muted); }
@@ -183,21 +206,18 @@
     display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
     font-size: 11px; color: var(--muted); text-align: center; margin-bottom: 6px;
   }
-  .month-cells {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
-  }
+  .month-cells { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .month-cell {
     aspect-ratio: 1;
     border-radius: 8px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     font-size: 13px;
     background: var(--bg);
-    cursor: pointer;
     transition: transform 0.1s;
   }
-  .month-cell.empty { background: transparent; cursor: default; }
+  .month-cell.empty { background: transparent; }
   .month-cell.has-log { background: var(--primary-light); color: var(--primary); font-weight: 600; }
-  .month-cell.has-log.over-goal { background: #FCEEE2; color: var(--accent); }
+  .month-cell.has-log.over-goal { background: var(--accent-light); color: var(--accent); }
   .month-cell.today { box-shadow: inset 0 0 0 2px var(--primary); }
   .month-cell:not(.empty):active { transform: scale(0.95); }
   .month-cell .cell-cals { font-size: 9px; color: var(--muted); margin-top: 1px; font-weight: 400; }
@@ -219,7 +239,7 @@
     color: var(--faint); font-size: 11px; font-weight: 500;
     transition: color 0.15s;
   }
-  .tab-icon { font-size: 20px; }
+  .tab svg { width: 22px; height: 22px; }
   .tab.active { color: var(--primary); }
 
   /* Sheet (modal) */
@@ -245,27 +265,27 @@
   .sheet.open { transform: translateY(0); }
   .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 8px auto 0; }
   .sheet-header {
-    padding: 16px 20px 12px;
+    padding: 12px 20px;
     display: flex; justify-content: space-between; align-items: center;
     border-bottom: 1px solid var(--border);
   }
   .sheet-title { font-size: 17px; font-weight: 600; }
-  .sheet-close { color: var(--primary); font-size: 15px; font-weight: 500; padding: 4px 8px; }
+  .sheet-close { color: var(--primary); font-size: 15px; font-weight: 500; padding: 6px 8px; }
   .sheet-body { overflow-y: auto; padding: 16px 20px 20px; -webkit-overflow-scrolling: touch; }
 
   /* Add sheet */
-  .input-mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .input-mode-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 18px; }
   .mode-btn {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 16px 12px;
+    padding: 14px 8px;
     display: flex; flex-direction: column; align-items: center; gap: 6px;
-    font-size: 13px; font-weight: 500;
+    font-size: 12px; font-weight: 500;
     transition: background 0.15s;
   }
   .mode-btn:active { background: var(--primary-light); }
-  .mode-btn-icon { font-size: 22px; }
+  .mode-btn svg { width: 22px; height: 22px; color: var(--primary); }
 
   .field { margin-bottom: 14px; }
   .field-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; display: block; }
@@ -281,6 +301,30 @@
   }
   .field-input:focus, .field-select:focus { outline: none; border-color: var(--primary); }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .portion-row {
+    background: var(--primary-light);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .portion-row label { font-size: 13px; color: var(--primary); font-weight: 500; }
+  .portion-input {
+    width: 80px; padding: 8px 12px;
+    background: white;
+    border: 1px solid rgba(45, 95, 79, 0.2);
+    border-radius: 8px;
+    font-size: 15px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .portion-input:focus { outline: none; border-color: var(--primary); }
+  .portion-result { font-size: 13px; color: var(--primary); }
+  .portion-result strong { font-size: 16px; }
 
   .primary-btn {
     width: 100%; padding: 14px;
@@ -292,6 +336,16 @@
   }
   .primary-btn:active { opacity: 0.85; }
   .primary-btn:disabled { opacity: 0.4; }
+
+  .danger-btn {
+    width: 100%; padding: 14px;
+    background: transparent;
+    color: var(--danger);
+    font-size: 15px; font-weight: 500;
+    border-radius: 12px;
+    margin-top: 6px;
+  }
+  .danger-btn:active { background: var(--accent-light); }
 
   .ghost-btn {
     width: 100%; padding: 12px;
@@ -311,11 +365,17 @@
     display: flex; justify-content: space-between; align-items: center;
     text-align: left;
     transition: background 0.15s;
+    gap: 12px;
   }
   .recent-item:active { background: var(--primary-light); }
-  .recent-name { font-size: 14px; font-weight: 500; }
+  .recent-info { flex: 1; min-width: 0; }
+  .recent-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .recent-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
-  .recent-cals { font-size: 12px; color: var(--muted); }
+  .recent-cals { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* Search results */
+  .search-status { padding: 12px; color: var(--muted); font-size: 13px; text-align: center; }
+  .search-results { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 
   /* Scanner */
   #scanner { width: 100%; border-radius: 12px; overflow: hidden; background: black; aspect-ratio: 1; }
@@ -330,6 +390,7 @@
     text-align: left;
     width: 100%;
     transition: background 0.15s;
+    cursor: pointer;
   }
   .settings-row:first-child { border-top: none; }
   .settings-row:active { background: var(--bg); }
@@ -340,7 +401,7 @@
 
   /* Toast */
   .toast {
-    position: fixed; bottom: calc(80px + var(--safe-bottom)); left: 50%;
+    position: fixed; bottom: calc(82px + var(--safe-bottom)); left: 50%;
     transform: translateX(-50%) translateY(20px);
     background: var(--text); color: white;
     padding: 10px 18px; border-radius: 20px;
@@ -350,6 +411,7 @@
     z-index: 200;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--danger); }
 
   .hidden { display: none !important; }
 </style>
@@ -358,34 +420,55 @@
 <div class="app">
   <header class="header">
     <div class="header-top">
-      <h1 class="app-title"><span class="leaf">🌿</span> Food Log</h1>
+      <h1 class="app-title"><span class="leaf">🌿</span>Food Log</h1>
       <div class="header-actions">
-        <button class="icon-btn" id="todayBtn" title="Today">⊙</button>
+        <button class="icon-btn" id="todayBtn" title="Jump to today" aria-label="Today">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+        </button>
       </div>
     </div>
     <div class="date-nav" id="dateNav">
-      <button class="date-nav-btn" id="prevDay">‹</button>
-      <div class="current-date" id="currentDate"></div>
-      <button class="date-nav-btn" id="nextDay">›</button>
+      <button class="date-nav-btn" id="prevDay" aria-label="Previous day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="current-date" id="currentDate" aria-label="Pick date">
+        <div class="current-date-main" id="currentDateMain"></div>
+        <small class="current-date-sub" id="currentDateSub"></small>
+      </button>
+      <button class="date-nav-btn" id="nextDay" aria-label="Next day">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
     </div>
+    <input type="date" id="datePicker" class="hidden-date-input">
   </header>
 
   <main class="content" id="content"></main>
 
   <nav class="tabbar">
-    <button class="tab active" data-view="day"><span class="tab-icon">●</span><span>Today</span></button>
-    <button class="tab" data-view="week"><span class="tab-icon">▦</span><span>Week</span></button>
-    <button class="tab" data-view="month"><span class="tab-icon">▤</span><span>Month</span></button>
-    <button class="tab" data-view="settings"><span class="tab-icon">⚙</span><span>Settings</span></button>
+    <button class="tab active" data-view="day" aria-label="Today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="15" r="1.5" fill="currentColor"/></svg>
+      <span>Today</span>
+    </button>
+    <button class="tab" data-view="week" aria-label="Week">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="2" y2="20"/></svg>
+      <span>Week</span>
+    </button>
+    <button class="tab" data-view="month" aria-label="Month">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Month</span>
+    </button>
+    <button class="tab" data-view="settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
   </nav>
 </div>
 
-<!-- Add Sheet -->
 <div class="sheet-backdrop" id="sheetBackdrop"></div>
-<div class="sheet" id="addSheet">
+<div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
-    <div class="sheet-title" id="sheetTitle">Add to breakfast</div>
+    <div class="sheet-title" id="sheetTitle"></div>
     <button class="sheet-close" id="sheetClose">Done</button>
   </div>
   <div class="sheet-body" id="sheetBody"></div>
@@ -397,20 +480,22 @@
 (() => {
   'use strict';
 
-  // ----- State -----
   const STORAGE_KEY = 'foodlog.v1';
   const MEALS = [
-    { id: 'breakfast', label: 'Breakfast', icon: '☀' },
-    { id: 'lunch', label: 'Lunch', icon: '◐' },
-    { id: 'dinner', label: 'Dinner', icon: '◑' },
-    { id: 'other', label: 'Other', icon: '+' }
+    { id: 'breakfast', label: 'Breakfast', icon: '🌅' },
+    { id: 'lunch',     label: 'Lunch',     icon: '☀️' },
+    { id: 'dinner',    label: 'Dinner',    icon: '🌙' },
+    { id: 'other',     label: 'Snacks',    icon: '🍎' }
   ];
 
+  // ----- State -----
   let state = loadState();
   let currentView = 'day';
   let currentDate = todayKey();
   let activeMeal = 'breakfast';
+  let editingItem = null;
   let scanner = null;
+  let searchTimer = null;
 
   function loadState() {
     try {
@@ -426,26 +511,27 @@
   }
   function saveState() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch (e) { toast('Could not save — storage full?'); }
+    catch (e) { toast('Could not save — storage full?', true); }
   }
 
+  // ----- Date helpers -----
   function todayKey(d = new Date()) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
   function parseKey(k) { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); }
   function shiftDate(k, days) { const d = parseKey(k); d.setDate(d.getDate() + days); return todayKey(d); }
   function formatDate(k) {
-    const d = parseKey(k);
     const today = todayKey();
-    const yesterday = shiftDate(today, -1);
     if (k === today) return 'Today';
-    if (k === yesterday) return 'Yesterday';
-    return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+    if (k === shiftDate(today, -1)) return 'Yesterday';
+    if (k === shiftDate(today, 1)) return 'Tomorrow';
+    return parseKey(k).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
   }
   function formatDateSub(k) {
     return parseKey(k).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // ----- Entries -----
   function dayEntries(dateKey) {
     return state.entries[dateKey] || { breakfast: [], lunch: [], dinner: [], other: [] };
   }
@@ -460,33 +546,55 @@
   function mealTotal(dateKey, mealId) {
     return (dayEntries(dateKey)[mealId] || []).reduce((s, i) => s + (i.calories || 0), 0);
   }
+  function hasAnyEntries() {
+    return Object.keys(state.entries).some(k => dayItemCount(k) > 0);
+  }
 
   function addItem(dateKey, mealId, item) {
     if (!state.entries[dateKey]) state.entries[dateKey] = { breakfast: [], lunch: [], dinner: [], other: [] };
     if (!state.entries[dateKey][mealId]) state.entries[dateKey][mealId] = [];
     const entry = { id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), ...item };
     state.entries[dateKey][mealId].push(entry);
-    // Add to recents
-    const recentKey = (item.name + '|' + (item.brand || '')).toLowerCase();
-    state.recents = state.recents.filter(r => (r.name + '|' + (r.brand || '')).toLowerCase() !== recentKey);
-    state.recents.unshift({ name: item.name, brand: item.brand, calories: item.calories });
-    if (state.recents.length > 30) state.recents = state.recents.slice(0, 30);
+    // Add/refresh in recents (store reusable data: name, brand, calories, and per-100g if it was a barcode item)
+    const key = (item.name + '|' + (item.brand || '')).toLowerCase();
+    state.recents = state.recents.filter(r => (r.name + '|' + (r.brand || '')).toLowerCase() !== key);
+    state.recents.unshift({
+      name: item.name, brand: item.brand,
+      calories: item.calories,
+      kcalPer100g: item.kcalPer100g || null
+    });
+    if (state.recents.length > 40) state.recents = state.recents.slice(0, 40);
     saveState();
+    haptic();
+  }
+  function updateItem(dateKey, mealId, itemId, patch) {
+    const items = state.entries[dateKey]?.[mealId];
+    if (!items) return;
+    const it = items.find(i => i.id === itemId);
+    if (!it) return;
+    Object.assign(it, patch);
+    saveState();
+    haptic();
   }
   function removeItem(dateKey, mealId, itemId) {
     if (!state.entries[dateKey]) return;
     state.entries[dateKey][mealId] = (state.entries[dateKey][mealId] || []).filter(i => i.id !== itemId);
     saveState();
+    haptic();
   }
 
-  // ----- Toast -----
+  // ----- Toast + haptic -----
   let toastTimer = null;
-  function toast(msg) {
+  function toast(msg, isError = false) {
     const el = document.getElementById('toast');
     el.textContent = msg;
+    el.classList.toggle('error', isError);
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+  function haptic() {
+    try { if (navigator.vibrate) navigator.vibrate(10); } catch(e) {}
   }
 
   // ----- Render -----
@@ -494,8 +602,9 @@
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === currentView));
     document.getElementById('dateNav').style.display = currentView === 'day' ? 'flex' : 'none';
     if (currentView === 'day') {
-      const d = document.getElementById('currentDate');
-      d.innerHTML = formatDate(currentDate) + '<small>' + formatDateSub(currentDate) + '</small>';
+      document.getElementById('currentDateMain').textContent = formatDate(currentDate);
+      document.getElementById('currentDateSub').textContent = formatDateSub(currentDate);
+      document.getElementById('datePicker').value = currentDate;
       renderDay();
     } else if (currentView === 'week') renderWeek();
     else if (currentView === 'month') renderMonth();
@@ -507,23 +616,38 @@
     const entries = dayEntries(currentDate);
     const total = dayTotal(currentDate);
     const count = dayItemCount(currentDate);
-    const goal = state.goal.calories;
 
+    // Welcome state on first launch
+    if (!hasAnyEntries() && currentDate === todayKey()) {
+      content.innerHTML = `
+        <div class="welcome">
+          <div class="welcome-emoji">🌿</div>
+          <div class="welcome-title">Welcome to your food log</div>
+          <div class="welcome-text">Tap a meal below to log what you ate.<br>Scan a barcode, type it, or pick from your recents.</div>
+          <div class="welcome-tip">
+            <strong>Tip:</strong> set a daily calorie goal in <strong>Settings</strong> to see progress on every day and a "days on goal" stat for the week and month.
+          </div>
+        </div>
+      ` + renderMealsHtml(entries);
+      attachDayHandlers();
+      return;
+    }
+
+    const goal = state.goal.calories;
     let summaryHtml;
     if (goal) {
       const pct = Math.min(100, Math.round((total / goal) * 100));
       const remaining = goal - total;
-      const overBy = total - goal;
       summaryHtml = `
-        <div class="summary" style="display:block">
-          <div style="display:flex; justify-content:space-between; align-items:baseline">
+        <div class="summary">
+          <div class="summary-row">
             <div>
               <div class="summary-label">Today</div>
               <div class="summary-value">${total}<small>/ ${goal} kcal</small></div>
             </div>
             <div class="summary-right">
               <div class="summary-label">${remaining >= 0 ? 'Remaining' : 'Over by'}</div>
-              <div class="summary-value" style="font-size:22px">${Math.abs(remaining >= 0 ? remaining : overBy)}<small>kcal</small></div>
+              <div class="summary-value sub">${Math.abs(remaining)}<small>kcal</small></div>
             </div>
           </div>
           <div class="progress-track">
@@ -533,27 +657,32 @@
             <span>${count} item${count === 1 ? '' : 's'} logged</span>
             <span>${pct}%</span>
           </div>
-        </div>
-      `;
+        </div>`;
     } else {
       summaryHtml = `
         <div class="summary">
-          <div>
-            <div class="summary-label">Total today</div>
-            <div class="summary-value">${total}<small>kcal</small></div>
+          <div class="summary-row">
+            <div>
+              <div class="summary-label">Total today</div>
+              <div class="summary-value">${total}<small>kcal</small></div>
+            </div>
+            <div class="summary-right">
+              <div class="summary-label">Items</div>
+              <div class="summary-value">${count}</div>
+            </div>
           </div>
-          <div class="summary-right">
-            <div class="summary-label">Items</div>
-            <div class="summary-value">${count}</div>
-          </div>
-        </div>
-      `;
+        </div>`;
     }
-    let html = summaryHtml;
 
+    content.innerHTML = summaryHtml + renderMealsHtml(entries);
+    attachDayHandlers();
+  }
+
+  function renderMealsHtml(entries) {
+    let html = '';
     for (const m of MEALS) {
       const items = entries[m.id] || [];
-      const total = mealTotal(currentDate, m.id);
+      const total = items.reduce((s, i) => s + (i.calories || 0), 0);
       html += `<section class="meal">
         <div class="meal-header">
           <div class="meal-title"><span class="meal-icon">${m.icon}</span>${m.label}</div>
@@ -564,25 +693,23 @@
         html += `<div class="meal-empty">Nothing logged</div>`;
       } else {
         for (const it of items) {
-          html += `<div class="meal-item">
+          html += `<button class="meal-item" data-meal="${m.id}" data-id="${it.id}">
             <div class="item-info">
               <div class="item-name">${escapeHtml(it.name)}</div>
-              ${it.brand ? `<div class="item-brand">${escapeHtml(it.brand)}</div>` : ''}
+              ${it.brand ? `<div class="item-brand">${escapeHtml(it.brand)}${it.grams ? ' · ' + it.grams + ' g' : ''}</div>` : it.grams ? `<div class="item-brand">${it.grams} g</div>` : ''}
             </div>
             <div class="item-cals">${it.calories ? it.calories + ' kcal' : '—'}</div>
-            <button class="item-delete" data-meal="${m.id}" data-id="${it.id}">✕</button>
-          </div>`;
+          </button>`;
         }
       }
       html += `</div><button class="add-btn" data-meal="${m.id}">+ Add to ${m.label.toLowerCase()}</button></section>`;
     }
-    content.innerHTML = html;
+    return html;
+  }
 
-    content.querySelectorAll('.add-btn').forEach(b => b.addEventListener('click', () => openAddSheet(b.dataset.meal)));
-    content.querySelectorAll('.item-delete').forEach(b => b.addEventListener('click', () => {
-      removeItem(currentDate, b.dataset.meal, b.dataset.id);
-      render();
-    }));
+  function attachDayHandlers() {
+    document.querySelectorAll('.add-btn').forEach(b => b.addEventListener('click', () => openAddSheet(b.dataset.meal)));
+    document.querySelectorAll('.meal-item').forEach(b => b.addEventListener('click', () => openEditSheet(b.dataset.meal, b.dataset.id)));
   }
 
   function renderWeek() {
@@ -590,15 +717,19 @@
     const today = todayKey();
     let html = '<div class="view-title">Last 7 days</div><div class="week-list">';
     let weekTotal = 0, daysWithLog = 0;
+    const goal = state.goal.calories;
+    let goalDaysHit = 0;
     for (let i = 0; i < 7; i++) {
       const k = shiftDate(today, -i);
       const total = dayTotal(k);
       const count = dayItemCount(k);
-      if (count > 0) { weekTotal += total; daysWithLog++; }
+      if (count > 0) {
+        weekTotal += total; daysWithLog++;
+        if (goal && total <= goal) goalDaysHit++;
+      }
       const d = parseKey(k);
       const dayName = i === 0 ? 'Today' : i === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' });
       const sub = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      const goal = state.goal.calories;
       let dot = '';
       if (goal && count > 0) {
         const cls = total > goal ? 'over' : 'hit';
@@ -611,20 +742,11 @@
     }
     html += '</div>';
     const avg = daysWithLog ? Math.round(weekTotal / daysWithLog) : 0;
-    const goal = state.goal.calories;
-    let goalDaysHit = 0;
-    if (goal) {
-      for (let i = 0; i < 7; i++) {
-        const k = shiftDate(today, -i);
-        const t = dayTotal(k); const c = dayItemCount(k);
-        if (c > 0 && t <= goal) goalDaysHit++;
-      }
-    }
     html += `<div class="month-stats" style="margin-top:16px">
       <div><div class="month-stat-label">Week total</div><div class="month-stat-value">${weekTotal}<small>kcal</small></div></div>
       <div><div class="month-stat-label">Daily avg</div><div class="month-stat-value">${avg}<small>kcal</small></div></div>
       ${goal ? `<div><div class="month-stat-label">Days on goal</div><div class="month-stat-value">${goalDaysHit}<small>/ ${daysWithLog}</small></div></div>
-      <div><div class="month-stat-label">Daily goal</div><div class="month-stat-value">${goal}<small>kcal</small></div></div>` : ''}
+      <div><div class="month-stat-label">Goal</div><div class="month-stat-value">${goal}<small>kcal</small></div></div>` : ''}
     </div>`;
     content.innerHTML = html;
     content.querySelectorAll('.week-row').forEach(r => r.addEventListener('click', () => {
@@ -702,41 +824,42 @@
     content.innerHTML = `
       <div class="view-title">Daily goal</div>
       <div class="settings-group" style="padding: 16px">
-        <div class="field" style="margin-bottom: 8px">
+        <div class="field" style="margin-bottom: 0">
           <label class="field-label">Calorie target per day</label>
           <input type="number" inputmode="numeric" class="field-input" id="goalInput" placeholder="e.g. 2000" value="${state.goal.calories || ''}">
+          <div class="field-hint">Leave blank to hide goal tracking.</div>
         </div>
       </div>
-      <div class="settings-help">Leave blank to hide goal tracking. Common starting points: ~2000 kcal for a moderately active adult, lower for weight loss, higher for muscle gain. The NHS suggests roughly 2500 for men and 2000 for women on average — your number depends on age, size, and activity.</div>
 
       <div class="view-title">Your data</div>
       <div class="month-stats">
         <div><div class="month-stat-label">Total items</div><div class="month-stat-value">${totalEntries}</div></div>
         <div><div class="month-stat-label">Days logged</div><div class="month-stat-value">${totalDays}</div></div>
       </div>
+
       <div class="view-title">Backup</div>
       <div class="settings-group">
         <button class="settings-row" id="exportBtn">
           <span class="settings-label">Export data (JSON)</span>
           <span class="settings-arrow">↓</span>
         </button>
-        <label class="settings-row" style="cursor:pointer">
+        <label class="settings-row">
           <span class="settings-label">Import data (JSON)</span>
           <span class="settings-arrow">↑</span>
           <input type="file" accept="application/json" id="importInput" style="display:none">
         </label>
       </div>
-      <div class="settings-help">Export saves all your entries to a file. Keep one occasionally — your data lives only in this browser, and clearing Safari data would erase it.</div>
+      <div class="settings-help">Your data lives only in this browser. Export occasionally and save the file to iCloud or email — clearing Safari data would erase the log.</div>
 
       <div class="view-title">Reset</div>
       <div class="settings-group">
         <button class="settings-row danger" id="clearBtn">
-          <span class="settings-label">Clear all data</span>
+          <span class="settings-label">Clear all entries</span>
           <span class="settings-arrow">✕</span>
         </button>
       </div>
 
-      <div class="settings-help" style="margin-top:24px; text-align:center">Food data from <a href="https://world.openfoodfacts.org" style="color:var(--primary)">Open Food Facts</a>.<br>Built for personal use. No tracking, no accounts.</div>
+      <div class="settings-help" style="margin-top:24px; text-align:center">Food data from <a href="https://world.openfoodfacts.org" style="color:var(--primary)">Open Food Facts</a>.<br>No tracking, no accounts.</div>
     `;
     document.getElementById('exportBtn').addEventListener('click', exportData);
     document.getElementById('importInput').addEventListener('change', importData);
@@ -779,43 +902,68 @@
         if (confirm('Replace current data with imported file? Your current entries will be lost.')) {
           state = imported;
           if (!state.recents) state.recents = [];
+          if (!state.goal) state.goal = { calories: null };
           saveState();
           render();
           toast('Imported');
         }
-      } catch (err) { toast('Invalid file'); }
+      } catch (err) { toast('Invalid file', true); }
     };
     reader.readAsText(file);
   }
 
-  // ----- Add sheet -----
+  // ----- Add / Edit sheet -----
   function openAddSheet(mealId) {
     activeMeal = mealId;
+    editingItem = null;
     const meal = MEALS.find(m => m.id === mealId);
     document.getElementById('sheetTitle').textContent = 'Add to ' + meal.label.toLowerCase();
-    renderAddSheet();
-    document.getElementById('sheetBackdrop').classList.add('open');
-    document.getElementById('addSheet').classList.add('open');
+    renderAddSheetHome();
+    showSheet();
   }
-  function closeAddSheet() {
+  function openEditSheet(mealId, itemId) {
+    const it = (state.entries[currentDate]?.[mealId] || []).find(i => i.id === itemId);
+    if (!it) return;
+    activeMeal = mealId;
+    editingItem = { mealId, itemId };
+    document.getElementById('sheetTitle').textContent = 'Edit item';
+    showManualForm({ ...it }, true);
+    showSheet();
+  }
+  function showSheet() {
+    document.getElementById('sheetBackdrop').classList.add('open');
+    document.getElementById('sheet').classList.add('open');
+  }
+  function closeSheet() {
     document.getElementById('sheetBackdrop').classList.remove('open');
-    document.getElementById('addSheet').classList.remove('open');
+    document.getElementById('sheet').classList.remove('open');
     stopScanner();
+    editingItem = null;
   }
 
-  function renderAddSheet() {
+  function renderAddSheetHome() {
     const body = document.getElementById('sheetBody');
     body.innerHTML = `
       <div class="input-mode-row">
-        <button class="mode-btn" id="modeScan"><span class="mode-btn-icon">⌗</span>Scan barcode</button>
-        <button class="mode-btn" id="modeManual"><span class="mode-btn-icon">✎</span>Type manually</button>
+        <button class="mode-btn" id="modeScan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="11" y1="8" x2="11" y2="16"/><line x1="15" y1="8" x2="15" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+          Scan barcode
+        </button>
+        <button class="mode-btn" id="modeSearch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search product
+        </button>
+        <button class="mode-btn" id="modeManual">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Type manually
+        </button>
       </div>
       ${state.recents.length > 0 ? `
-        <div class="section-label">Recents</div>
+        <div class="section-label">Recents (tap to add)</div>
         <div class="recents-list">
-          ${state.recents.slice(0, 12).map((r, i) => `
+          ${state.recents.slice(0, 15).map((r, i) => `
             <button class="recent-item" data-idx="${i}">
-              <div>
+              <div class="recent-info">
                 <div class="recent-name">${escapeHtml(r.name)}</div>
                 ${r.brand ? `<div class="recent-meta">${escapeHtml(r.brand)}</div>` : ''}
               </div>
@@ -825,48 +973,171 @@
       ` : '<div class="settings-help" style="text-align:center; padding-top:20px">Scan a product or type something to begin.<br>Your recent items will appear here.</div>'}
     `;
     document.getElementById('modeScan').addEventListener('click', showScanner);
+    document.getElementById('modeSearch').addEventListener('click', showSearchForm);
     document.getElementById('modeManual').addEventListener('click', () => showManualForm());
     body.querySelectorAll('.recent-item').forEach(b => b.addEventListener('click', () => {
       const r = state.recents[parseInt(b.dataset.idx)];
-      addItem(currentDate, activeMeal, { name: r.name, brand: r.brand, calories: r.calories });
+      addItem(currentDate, activeMeal, { name: r.name, brand: r.brand, calories: r.calories, kcalPer100g: r.kcalPer100g });
       toast('Added');
-      closeAddSheet();
+      closeSheet();
       render();
     }));
   }
 
-  function showManualForm(prefill = {}) {
+  function showManualForm(prefill = {}, isEdit = false) {
     const body = document.getElementById('sheetBody');
+    const kcalPer100g = prefill.kcalPer100g || null;
+    const initialGrams = prefill.grams || (kcalPer100g ? 100 : '');
+
     body.innerHTML = `
       <div class="field">
         <label class="field-label">What did you eat?</label>
-        <input type="text" class="field-input" id="mName" placeholder="e.g. Oatmeal with berries" value="${escapeAttr(prefill.name || '')}" autofocus>
+        <input type="text" class="field-input" id="mName" placeholder="e.g. Oatmeal with berries" value="${escapeAttr(prefill.name || '')}">
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label class="field-label">Brand <span style="opacity:0.6">(optional)</span></label>
-          <input type="text" class="field-input" id="mBrand" placeholder="—" value="${escapeAttr(prefill.brand || '')}">
-        </div>
-        <div class="field">
-          <label class="field-label">Calories <span style="opacity:0.6">(optional)</span></label>
-          <input type="number" inputmode="numeric" class="field-input" id="mCals" placeholder="—" value="${prefill.calories || ''}">
-        </div>
+      <div class="field">
+        <label class="field-label">Brand <span style="opacity:0.6">(optional)</span></label>
+        <input type="text" class="field-input" id="mBrand" placeholder="—" value="${escapeAttr(prefill.brand || '')}">
       </div>
-      <button class="primary-btn" id="mSave">Add to ${MEALS.find(m => m.id === activeMeal).label.toLowerCase()}</button>
-      <button class="ghost-btn" id="mBack">← Back</button>
+      ${kcalPer100g ? `
+        <div class="portion-row">
+          <label for="mGrams">${kcalPer100g} kcal per 100g × </label>
+          <input type="number" inputmode="numeric" class="portion-input" id="mGrams" value="${initialGrams}" min="1">
+          <div class="portion-result"><strong id="mPortionCalc">${Math.round(kcalPer100g * (initialGrams || 0) / 100)}</strong> kcal</div>
+        </div>
+      ` : ''}
+      <div class="field">
+        <label class="field-label">Calories ${kcalPer100g ? '<span style="opacity:0.6">(auto-calculated)</span>' : '<span style="opacity:0.6">(optional)</span>'}</label>
+        <input type="number" inputmode="numeric" class="field-input" id="mCals" placeholder="—" value="${prefill.calories || ''}">
+      </div>
+      <button class="primary-btn" id="mSave">${isEdit ? 'Save changes' : `Add to ${MEALS.find(m => m.id === activeMeal).label.toLowerCase()}`}</button>
+      ${isEdit ? '<button class="danger-btn" id="mDelete">Delete item</button>' : ''}
+      <button class="ghost-btn" id="mBack">← ${isEdit ? 'Cancel' : 'Back'}</button>
     `;
+
     setTimeout(() => document.getElementById('mName').focus(), 100);
-    document.getElementById('mSave').addEventListener('click', () => {
+
+    // Portion auto-calc
+    if (kcalPer100g) {
+      const gramsEl = document.getElementById('mGrams');
+      const calcEl = document.getElementById('mPortionCalc');
+      const calsEl = document.getElementById('mCals');
+      const updateCals = () => {
+        const g = parseFloat(gramsEl.value) || 0;
+        const cals = Math.round(kcalPer100g * g / 100);
+        calcEl.textContent = cals;
+        calsEl.value = cals;
+      };
+      gramsEl.addEventListener('input', updateCals);
+      if (!prefill.calories) updateCals();
+    }
+
+    const save = () => {
       const name = document.getElementById('mName').value.trim();
-      if (!name) { toast('Please enter a name'); return; }
+      if (!name) { toast('Please enter a name', true); return; }
       const brand = document.getElementById('mBrand').value.trim();
       const cals = parseInt(document.getElementById('mCals').value) || null;
-      addItem(currentDate, activeMeal, { name, brand: brand || null, calories: cals });
-      toast('Added');
-      closeAddSheet();
+      const grams = kcalPer100g ? (parseFloat(document.getElementById('mGrams').value) || null) : (prefill.grams || null);
+      const payload = { name, brand: brand || null, calories: cals, grams, kcalPer100g };
+      if (isEdit) {
+        updateItem(currentDate, editingItem.mealId, editingItem.itemId, payload);
+        toast('Saved');
+      } else {
+        addItem(currentDate, activeMeal, payload);
+        toast('Added');
+      }
+      closeSheet();
       render();
+    };
+
+    document.getElementById('mSave').addEventListener('click', save);
+    // Enter to save
+    body.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
     });
-    document.getElementById('mBack').addEventListener('click', renderAddSheet);
+    if (isEdit) {
+      document.getElementById('mDelete').addEventListener('click', () => {
+        if (confirm('Delete this item?')) {
+          removeItem(currentDate, editingItem.mealId, editingItem.itemId);
+          toast('Deleted');
+          closeSheet();
+          render();
+        }
+      });
+    }
+    document.getElementById('mBack').addEventListener('click', () => {
+      if (isEdit) closeSheet();
+      else renderAddSheetHome();
+    });
+  }
+
+  // ----- Search Open Food Facts by name -----
+  function showSearchForm() {
+    const body = document.getElementById('sheetBody');
+    body.innerHTML = `
+      <div class="field">
+        <label class="field-label">Search Open Food Facts</label>
+        <input type="search" class="field-input" id="searchInput" placeholder="e.g. AH biscuit, Nutella, banana" autofocus>
+      </div>
+      <div id="searchStatus" class="search-status">Type at least 2 letters to search.</div>
+      <div id="searchResults" class="search-results"></div>
+      <button class="ghost-btn" id="searchBack" style="margin-top:8px">← Back</button>
+    `;
+    setTimeout(() => document.getElementById('searchInput').focus(), 100);
+    document.getElementById('searchBack').addEventListener('click', renderAddSheetHome);
+    const inp = document.getElementById('searchInput');
+    inp.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const q = inp.value.trim();
+      if (q.length < 2) {
+        document.getElementById('searchStatus').textContent = 'Type at least 2 letters to search.';
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+      }
+      searchTimer = setTimeout(() => doSearch(q), 350);
+    });
+  }
+  async function doSearch(q) {
+    const status = document.getElementById('searchStatus');
+    const results = document.getElementById('searchResults');
+    status.textContent = 'Searching…';
+    results.innerHTML = '';
+    try {
+      // Bias toward Belgium for AH coverage
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&countries_tags=belgium`;
+      const res = await fetch(url);
+      const data = await res.json();
+      let products = data.products || [];
+      // If nothing in Belgium, retry globally
+      if (products.length === 0) {
+        const res2 = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12`);
+        const data2 = await res2.json();
+        products = data2.products || [];
+      }
+      if (products.length === 0) {
+        status.textContent = 'No matches. Try a different word or use manual entry.';
+        return;
+      }
+      status.textContent = `${products.length} result${products.length === 1 ? '' : 's'}`;
+      results.innerHTML = products.map((p, i) => {
+        const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || 'Unknown';
+        const brand = (p.brands || '').split(',')[0].trim() || '';
+        const nutr = p.nutriments || {};
+        const cals = nutr['energy-kcal_100g'] || (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
+        return `<button class="recent-item" data-idx="${i}">
+          <div class="recent-info">
+            <div class="recent-name">${escapeHtml(name)}</div>
+            ${brand ? `<div class="recent-meta">${escapeHtml(brand)}</div>` : ''}
+          </div>
+          <div class="recent-cals">${cals ? cals + ' kcal/100g' : '—'}</div>
+        </button>`;
+      }).join('');
+      results.querySelectorAll('.recent-item').forEach(b => b.addEventListener('click', () => {
+        const p = products[parseInt(b.dataset.idx)];
+        useFoundProduct(p);
+      }));
+    } catch (err) {
+      status.textContent = 'Search failed. Check your connection.';
+    }
   }
 
   // ----- Barcode scanner -----
@@ -877,12 +1148,13 @@
       <div class="scanner-status" id="scanStatus">Point the camera at the barcode</div>
       <button class="ghost-btn" id="scanBack">← Back</button>
     `;
-    document.getElementById('scanBack').addEventListener('click', () => { stopScanner(); renderAddSheet(); });
+    document.getElementById('scanBack').addEventListener('click', () => { stopScanner(); renderAddSheetHome(); });
     startScanner();
   }
   function startScanner() {
     if (typeof Html5Qrcode === 'undefined') {
-      document.getElementById('scanStatus').textContent = 'Scanner failed to load. Use manual entry.';
+      const s = document.getElementById('scanStatus');
+      if (s) s.textContent = 'Scanner failed to load. Use Search or Manual instead.';
       return;
     }
     scanner = new Html5Qrcode('scanner');
@@ -893,7 +1165,7 @@
       () => {}
     ).catch(err => {
       const s = document.getElementById('scanStatus');
-      if (s) s.textContent = 'Could not access camera. Check Safari permissions in Settings → Safari → Camera.';
+      if (s) s.textContent = 'Could not access camera. Check Settings → Safari → Camera.';
       console.error(err);
     });
   }
@@ -905,30 +1177,31 @@
   async function onBarcode(code) {
     if (!scanner || !scanner.isScanning) return;
     await scanner.pause(true);
+    haptic();
     const status = document.getElementById('scanStatus');
     if (status) status.textContent = 'Looking up ' + code + '…';
     try {
       const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`);
       const data = await res.json();
       if (data.status === 1 && data.product) {
-        const p = data.product;
-        // For Belgium / AH products, prefer Dutch then French then English then default
-        const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || p.generic_name_nl || p.generic_name || 'Unknown product';
-        const brand = (p.brands || '').split(',')[0].trim() || null;
-        const nutr = p.nutriments || {};
-        const cals100 = nutr['energy-kcal_100g'] || (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
-        stopScanner();
-        showManualForm({ name, brand, calories: cals100 ? Math.round(cals100) : null });
-        if (cals100) toast('Loaded — calories shown per 100g');
-        else toast('Loaded — add calories if you know them');
+        useFoundProduct(data.product);
       } else {
-        if (status) status.textContent = 'Product not found. Trying again…';
+        if (status) status.textContent = 'Product not found in database. Trying again…';
         setTimeout(() => { if (scanner) scanner.resume(); }, 1500);
       }
     } catch (e) {
       if (status) status.textContent = 'Lookup failed. Check your connection.';
       setTimeout(() => { if (scanner) scanner.resume(); }, 1500);
     }
+  }
+  function useFoundProduct(p) {
+    const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || p.generic_name_nl || p.generic_name || 'Unknown product';
+    const brand = (p.brands || '').split(',')[0].trim() || null;
+    const nutr = p.nutriments || {};
+    const kcalPer100g = nutr['energy-kcal_100g'] ? Math.round(nutr['energy-kcal_100g']) : (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
+    stopScanner();
+    showManualForm({ name, brand, kcalPer100g });
+    toast(kcalPer100g ? 'Found — set how many grams you ate' : 'Found — add calories if known');
   }
 
   // ----- View switching -----
@@ -938,17 +1211,26 @@
     render();
   }
 
-  // ----- Helpers -----
   function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function escapeAttr(s) { return escapeHtml(s); }
 
   // ----- Wire up -----
-  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { haptic(); switchView(t.dataset.view); }));
   document.getElementById('prevDay').addEventListener('click', () => { currentDate = shiftDate(currentDate, -1); render(); });
   document.getElementById('nextDay').addEventListener('click', () => { currentDate = shiftDate(currentDate, 1); render(); });
   document.getElementById('todayBtn').addEventListener('click', () => { currentDate = todayKey(); switchView('day'); });
-  document.getElementById('sheetClose').addEventListener('click', closeAddSheet);
-  document.getElementById('sheetBackdrop').addEventListener('click', closeAddSheet);
+
+  // Tap date to open native iOS date picker
+  const datePicker = document.getElementById('datePicker');
+  document.getElementById('currentDate').addEventListener('click', () => {
+    datePicker.showPicker ? datePicker.showPicker() : datePicker.click();
+  });
+  datePicker.addEventListener('change', () => {
+    if (datePicker.value) { currentDate = datePicker.value; render(); }
+  });
+
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  document.getElementById('sheetBackdrop').addEventListener('click', closeSheet);
 
   render();
 })();
