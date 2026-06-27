@@ -378,8 +378,20 @@
   .search-results { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 
   /* Scanner */
-  #scanner { width: 100%; border-radius: 12px; overflow: hidden; background: black; aspect-ratio: 1; }
-  .scanner-status { text-align: center; padding: 12px; color: var(--muted); font-size: 13px; }
+  #scanner {
+    width: 100%; min-height: 60vh;
+    border-radius: 12px; overflow: hidden;
+    background: black; position: relative;
+  }
+  #scanner video, #scanner img, #scanner > div {
+    width: 100% !important; height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 12px;
+  }
+  .scanner-status {
+    text-align: center; padding: 14px 12px 8px;
+    color: var(--muted); font-size: 13px;
+  }
 
   /* Settings */
   .settings-group { background: var(--card); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 14px; }
@@ -1102,33 +1114,39 @@
     status.textContent = 'Searching…';
     results.innerHTML = '';
     try {
-      // Bias toward Belgium for AH coverage
-      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12&countries_tags=belgium`;
-      const res = await fetch(url);
+      const fields = 'code,product_name,product_name_nl,product_name_fr,product_name_en,generic_name,brands,nutriments,countries_tags';
+      const url = `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(q)}&fields=${fields}&page_size=20`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       let products = data.products || [];
-      // If nothing in Belgium, retry globally
-      if (products.length === 0) {
-        const res2 = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=12`);
-        const data2 = await res2.json();
-        products = data2.products || [];
-      }
       if (products.length === 0) {
         status.textContent = 'No matches. Try a different word or use manual entry.';
         return;
       }
+      // Sort: Belgian products first, then ones with calorie data, then the rest
+      products.sort((a, b) => {
+        const aBE = (a.countries_tags || []).includes('en:belgium') ? 1 : 0;
+        const bBE = (b.countries_tags || []).includes('en:belgium') ? 1 : 0;
+        if (aBE !== bBE) return bBE - aBE;
+        const aCal = ((a.nutriments || {})['energy-kcal_100g']) ? 1 : 0;
+        const bCal = ((b.nutriments || {})['energy-kcal_100g']) ? 1 : 0;
+        return bCal - aCal;
+      });
+      products = products.slice(0, 12);
       status.textContent = `${products.length} result${products.length === 1 ? '' : 's'}`;
       results.innerHTML = products.map((p, i) => {
-        const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || 'Unknown';
+        const name = p.product_name_nl || p.product_name_fr || p.product_name_en || p.product_name || p.generic_name || 'Unknown';
         const brand = (p.brands || '').split(',')[0].trim() || '';
         const nutr = p.nutriments || {};
         const cals = nutr['energy-kcal_100g'] || (nutr['energy_100g'] ? Math.round(nutr['energy_100g'] / 4.184) : null);
+        const beTag = (p.countries_tags || []).includes('en:belgium') ? ' 🇧🇪' : '';
         return `<button class="recent-item" data-idx="${i}">
           <div class="recent-info">
-            <div class="recent-name">${escapeHtml(name)}</div>
+            <div class="recent-name">${escapeHtml(name)}${beTag}</div>
             ${brand ? `<div class="recent-meta">${escapeHtml(brand)}</div>` : ''}
           </div>
-          <div class="recent-cals">${cals ? cals + ' kcal/100g' : '—'}</div>
+          <div class="recent-cals">${cals ? Math.round(cals) + ' kcal/100g' : '—'}</div>
         </button>`;
       }).join('');
       results.querySelectorAll('.recent-item').forEach(b => b.addEventListener('click', () => {
@@ -1136,7 +1154,8 @@
         useFoundProduct(p);
       }));
     } catch (err) {
-      status.textContent = 'Search failed. Check your connection.';
+      console.error('Search error:', err);
+      status.textContent = 'Search failed: ' + (err.message || 'check your connection') + '. Try manual entry.';
     }
   }
 
@@ -1157,17 +1176,32 @@
       if (s) s.textContent = 'Scanner failed to load. Use Search or Manual instead.';
       return;
     }
-    scanner = new Html5Qrcode('scanner');
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
-      onBarcode,
-      () => {}
-    ).catch(err => {
-      const s = document.getElementById('scanStatus');
-      if (s) s.textContent = 'Could not access camera. Check Settings → Safari → Camera.';
-      console.error(err);
+    scanner = new Html5Qrcode('scanner', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ]
     });
+    const config = {
+      fps: 10,
+      qrbox: (w, h) => {
+        const minEdge = Math.min(w, h);
+        const size = Math.floor(minEdge * 0.8);
+        return { width: size, height: Math.floor(size * 0.55) };
+      },
+      aspectRatio: 1.333,
+      disableFlip: true
+    };
+    scanner.start({ facingMode: 'environment' }, config, onBarcode, () => {})
+      .catch(err => {
+        const s = document.getElementById('scanStatus');
+        if (s) s.textContent = 'Could not access camera. Check Settings → Safari → Camera, then reopen.';
+        console.error('Scanner error:', err);
+      });
   }
   function stopScanner() {
     if (scanner && scanner.isScanning) {
